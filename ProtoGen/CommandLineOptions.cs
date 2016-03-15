@@ -55,6 +55,7 @@ namespace ProtoBuf.CodeGenerator
         private string template = TemplateCSharp, outPath = "", defaultNamespace;
         private bool showLogo = true, showHelp, writeErrorsToFile;
         private readonly List<string> inPaths = new List<string>();
+        private readonly List<string> refPaths = new List<string>();
         private readonly List<string> args = new List<string>();
 
         private int messageCount;
@@ -68,6 +69,7 @@ namespace ProtoBuf.CodeGenerator
         private readonly XsltArgumentList xsltOptions = new XsltArgumentList();
         public XsltArgumentList XsltOptions { get { return xsltOptions; } }
         public List<string> InPaths { get { return inPaths; } }
+        public List<string> RefPaths { get { return refPaths; } }
         public List<string> Arguments { get { return args; } }
 
         private readonly TextWriter messageOutput;
@@ -113,6 +115,10 @@ namespace ProtoBuf.CodeGenerator
                 else if (arg.StartsWith("-i:"))
                 {
                     options.InPaths.Add(arg.Substring(3).Trim());
+                }
+                else if (arg.StartsWith("-r:"))
+                {
+                    options.RefPaths.Add(arg.Substring(3).Trim());
                 }
                 else if (arg == "-writeErrors")
                 {
