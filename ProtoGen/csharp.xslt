@@ -119,6 +119,7 @@ using <xsl:value-of select="$ns"/>;
   
   <xsl:template match="FileDescriptorProto">
 // Generated from: <xsl:value-of select="name"/>
+using NoNamespace;
     
     <xsl:apply-templates select="dependency/string[.!='']"/>
     <xsl:variable name="namespace"><xsl:call-template name="PickNamespace">
@@ -134,7 +135,6 @@ namespace <xsl:value-of select="translate($namespace,':-/\','__..')"/>
   
   <xsl:template match="FileDescriptorProto/dependency/string">
 // Note: requires additional types generated from: <xsl:value-of select="."/></xsl:template>
-
 
   <xsl:template name="camel">
     <xsl:param name="value" select="name"/>

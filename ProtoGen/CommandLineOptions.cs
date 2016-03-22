@@ -118,7 +118,9 @@ namespace ProtoBuf.CodeGenerator
                 }
                 else if (arg.StartsWith("-r:"))
                 {
-                    options.RefPaths.Add(arg.Substring(3).Trim());
+                    string path = arg.Substring(3).Trim();
+                    options.RefPaths.Add(path);
+                    options.Arguments.Add("--proto_path=" + path);
                 }
                 else if (arg == "-writeErrors")
                 {
@@ -234,6 +236,43 @@ namespace ProtoBuf.CodeGenerator
                 InputFileLoader.Merge(set, inPath, options.ErrorWriter, options.Arguments.ToArray());
             }
 
+            HashSet<string> seenPaths = new HashSet<string>(options.InPaths);
+
+            HashSet<string> depPaths = new HashSet<string>();
+            foreach (FileDescriptorProto file in set.file)
+            {
+                depPaths.UnionWith(file.dependency);
+            }
+
+            while(depPaths.Count != 0)
+            {
+                foreach (string inPath in depPaths)
+                {
+                    string path = inPath;
+                    if(!File.Exists(path))
+                    {
+                        foreach (string searchPath in options.RefPaths)
+                        {
+                            path = searchPath + "\\" + inPath;
+                            if(File.Exists(path))
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    InputFileLoader.Merge(set, path, options.ErrorWriter, options.Arguments.ToArray());
+                }
+
+                seenPaths.UnionWith(depPaths);
+                depPaths = new HashSet<string>();
+                foreach (FileDescriptorProto file in set.file)
+                {
+                    depPaths.UnionWith(file.dependency);
+                }
+                depPaths.ExceptWith(seenPaths);
+            }
+
             XmlSerializer xser = new XmlSerializer(typeof(FileDescriptorSet));
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
@@ -280,7 +319,18 @@ namespace ProtoBuf.CodeGenerator
                 }
                 xslt.Transform(reader, options.XsltOptions, writer);
             }
-            return sb.ToString();
+
+            string Code = sb.ToString();
+            int firstFileIndex = Code.IndexOf("// Generated from:");
+            if (firstFileIndex != -1)
+            {
+                int secondFileIndex = Code.IndexOf("// Generated from:", firstFileIndex + 1);
+                if (secondFileIndex != -1)
+                {
+                    Code = Code.Substring(0, secondFileIndex);
+                }
+            }
+            return Code;
         }
     }
 }
