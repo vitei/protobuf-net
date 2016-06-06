@@ -195,10 +195,18 @@ namespace <xsl:value-of select="translate($namespace,':-/\','__..')"/>
   </xsl:template>
 
   <xsl:template match="EnumDescriptorProto">
+    <xsl:variable name="isBitmask">
+      <xsl:choose>
+        <xsl:when test="bitmask"><xsl:value-of select="true()"/></xsl:when>
+        <xsl:otherwise><xsl:value-of select="false()"/></xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
     [global::ProtoBuf.ProtoContract(Name=@"<xsl:value-of select="name"/>")]
     <xsl:if test="$optionDataContract">[global::System.Runtime.Serialization.DataContract(Name=@"<xsl:value-of select="name"/>")]
     </xsl:if>
     <xsl:if test="$optionXml">[global::System.Xml.Serialization.XmlType(TypeName=@"<xsl:value-of select="name"/>")]
+    </xsl:if>
+    <xsl:if test="$isBitmask = 'true' or $isBitmask = '1'">[Flags]
     </xsl:if><!--
     -->public enum <xsl:call-template name="pascal"/>
     {
