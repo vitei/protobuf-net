@@ -10,6 +10,10 @@ using System.Runtime.CompilerServices;
 using System.ComponentModel;
 using System.Diagnostics;
 
+using XmlSerializer = System.Xml.Serialization.XmlSerializer;
+using System.Reflection;
+using System.Linq;
+
 namespace ProtoBuf.CodeGenerator
 {
     public sealed class CommandLineOptions
@@ -72,6 +76,8 @@ namespace ProtoBuf.CodeGenerator
         public List<string> RefPaths { get { return refPaths; } }
         public List<string> Arguments { get { return args; } }
 
+        public static Assembly DLLAssembly { get; private set; }
+
         private readonly TextWriter messageOutput;
 
         public static CommandLineOptions Parse(TextWriter messageOutput, params string[] args)
@@ -86,6 +92,10 @@ namespace ProtoBuf.CodeGenerator
                 {
                     if (!string.IsNullOrEmpty(options.OutPath)) options.ShowHelp = true;
                     options.OutPath = arg.Substring(3).Trim();
+                }
+                else if (arg.StartsWith("-dll:"))
+                {
+                    DLLAssembly = Assembly.LoadFrom(arg.Substring(5));                    
                 }
                 else if (arg.StartsWith("-p:"))
                 {
@@ -198,6 +208,7 @@ namespace ProtoBuf.CodeGenerator
                     if (this.OutPath == "-") { }
                     else if (!string.IsNullOrEmpty(this.OutPath))
                     {
+                        File.WriteAllText(this.OutPath + ".xml", xml);
                         File.WriteAllText(this.OutPath, Code);
                     }
                     else if (string.IsNullOrEmpty(this.OutPath))
@@ -273,7 +284,77 @@ namespace ProtoBuf.CodeGenerator
                 depPaths.ExceptWith(seenPaths);
             }
 
-            XmlSerializer xser = new XmlSerializer(typeof(FileDescriptorSet));
+            // If we've got an assembly loaded from a DLL, get the classes
+            // within that implement IExtensible.
+            List<Type> extensionTypes = null;
+            if (CommandLineOptions.DLLAssembly != null)
+            {
+                extensionTypes = DLLAssembly.GetExportedTypes()
+                    .ToList()
+                    .Where(t => t.IsClass == true)
+                    .Where(t => typeof(global::ProtoBuf.IExtensible).IsAssignableFrom(t))
+                    .ToList();
+            }
+
+            foreach (var file in set.file)
+            {
+                foreach (var et in file.enum_type)
+                {
+                    if (et.options == null)
+                        continue;
+                    
+                    foreach (var extType in extensionTypes)
+                    {
+                        var thisExtension = Activator.CreateInstance(extType);
+
+                        // @todo replace me! we should really be passing the
+                        // field numbers along with the DLL
+                        int key = 0;
+                        if (extType.Name.Equals("NanoPBOptions"))
+                        {
+                            key = 1010;
+                        }
+                        else if (extType.Name.Equals("UsagiPBEnumOptions"))
+                        {
+                            key = 1011;
+                        }
+                        if (key != 0)
+                        {
+                            MethodInfo method = typeof(Extensible).GetMethods(BindingFlags.Static | BindingFlags.Public).Where(m => m.Name.Equals("TryGetValue")).First();
+                            MethodInfo generic = method.MakeGenericMethod(extType);
+                            var args = new object[]
+                            {
+                                et.options,
+                                key,
+                                thisExtension
+                            };
+                            bool bSuccess = (bool)generic.Invoke(null, args);
+                            if (bSuccess)
+                            {
+                                thisExtension = args[2];
+                                var keys = new NamedList<List<KeyValuePair<string, string>>>(extType.Name, new List<KeyValuePair<string, string>>());
+                                foreach (var item in extType.GetProperties())
+                                {
+                                    keys.List.Add(new KeyValuePair<string, string>(
+                                        item.Name,
+                                        item.GetValue(thisExtension).ToString()
+                                    ));
+                                }
+                                et.Metadata.Add(keys);
+                            }
+                        }
+                    }
+                }
+            }            
+
+            XmlSerializer xser = new XmlSerializer(
+                typeof(FileDescriptorSet),
+                new Type[] {
+                    typeof (KeyValuePair<string, string>),
+                    typeof (List<KeyValuePair<string, string>>),
+                    typeof (List<NamedList<List<KeyValuePair<string, string>>>>)
+                }
+            );
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
             settings.IndentChars = "  ";
