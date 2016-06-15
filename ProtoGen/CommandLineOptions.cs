@@ -95,7 +95,9 @@ namespace ProtoBuf.CodeGenerator
                 }
                 else if (arg.StartsWith("-dll:"))
                 {
-                    DLLAssembly = Assembly.LoadFrom(arg.Substring(5));                    
+                    string dllPath = arg.Substring(5);
+                    if (!string.IsNullOrWhiteSpace(dllPath))
+                        DLLAssembly = Assembly.LoadFrom(arg.Substring(5));                    
                 }
                 else if (arg.StartsWith("-p:"))
                 {
@@ -295,57 +297,59 @@ namespace ProtoBuf.CodeGenerator
                     .Where(t => typeof(global::ProtoBuf.IExtensible).IsAssignableFrom(t))
                     .ToList();
             }
-
-            foreach (var file in set.file)
+            if (extensionTypes != null)
             {
-                foreach (var et in file.enum_type)
+                foreach (var file in set.file)
                 {
-                    if (et.options == null)
-                        continue;
-                    
-                    foreach (var extType in extensionTypes)
+                    foreach (var et in file.enum_type)
                     {
-                        var thisExtension = Activator.CreateInstance(extType);
+                        if (et.options == null)
+                            continue;
+                    
+                        foreach (var extType in extensionTypes)
+                        {
+                            var thisExtension = Activator.CreateInstance(extType);
 
-                        // @todo replace me! we should really be passing the
-                        // field numbers along with the DLL
-                        int key = 0;
-                        if (extType.Name.Equals("NanoPBOptions"))
-                        {
-                            key = 1010;
-                        }
-                        else if (extType.Name.Equals("UsagiPBEnumOptions"))
-                        {
-                            key = 1011;
-                        }
-                        if (key != 0)
-                        {
-                            MethodInfo method = typeof(Extensible).GetMethods(BindingFlags.Static | BindingFlags.Public).Where(m => m.Name.Equals("TryGetValue")).First();
-                            MethodInfo generic = method.MakeGenericMethod(extType);
-                            var args = new object[]
+                            // @todo replace me! we should really be passing the
+                            // field numbers along with the DLL
+                            int key = 0;
+                            if (extType.Name.Equals("NanoPBOptions"))
                             {
-                                et.options,
-                                key,
-                                thisExtension
-                            };
-                            bool bSuccess = (bool)generic.Invoke(null, args);
-                            if (bSuccess)
+                                key = 1010;
+                            }
+                            else if (extType.Name.Equals("UsagiPBEnumOptions"))
                             {
-                                thisExtension = args[2];
-                                var keys = new NamedList<List<KeyValuePair<string, string>>>(extType.Name, new List<KeyValuePair<string, string>>());
-                                foreach (var item in extType.GetProperties())
+                                key = 1011;
+                            }
+                            if (key != 0)
+                            {
+                                MethodInfo method = typeof(Extensible).GetMethods(BindingFlags.Static | BindingFlags.Public).Where(m => m.Name.Equals("TryGetValue")).First();
+                                MethodInfo generic = method.MakeGenericMethod(extType);
+                                var args = new object[]
                                 {
-                                    keys.List.Add(new KeyValuePair<string, string>(
-                                        item.Name,
-                                        item.GetValue(thisExtension).ToString()
-                                    ));
+                                    et.options,
+                                    key,
+                                    thisExtension
+                                };
+                                bool bSuccess = (bool)generic.Invoke(null, args);
+                                if (bSuccess)
+                                {
+                                    thisExtension = args[2];
+                                    var keys = new NamedList<List<KeyValuePair<string, string>>>(extType.Name, new List<KeyValuePair<string, string>>());
+                                    foreach (var item in extType.GetProperties())
+                                    {
+                                        keys.List.Add(new KeyValuePair<string, string>(
+                                            item.Name,
+                                            item.GetValue(thisExtension).ToString()
+                                        ));
+                                    }
+                                    et.Metadata.Add(keys);
                                 }
-                                et.Metadata.Add(keys);
                             }
                         }
                     }
                 }
-            }            
+            }
 
             XmlSerializer xser = new XmlSerializer(
                 typeof(FileDescriptorSet),
