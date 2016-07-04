@@ -679,6 +679,22 @@ namespace ProtoBuf.Meta
             }
 #endif
         }
+
+        /// <summary>
+        /// Deserialize one (just one!) object of the given type and return
+        /// it, or null if false. Don't check if the reader has been fully
+        /// consumed.
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public object DeserializeOne(ProtoReader reader, System.Type type)
+        {
+            object obj = DeserializeCore(reader, type, null, true);
+            
+            return obj;
+        }
+
         /// <summary>
         /// Applies a protocol-buffer reader to an existing instance (which may be null).
         /// </summary>

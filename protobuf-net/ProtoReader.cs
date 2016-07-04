@@ -30,6 +30,8 @@ namespace ProtoBuf
         bool isFixedLength, internStrings;
         private NetObjectCache netCache;
 
+        public int DataRemaining { get { return available; } }
+
         // this is how many outstanding objects do not currently have
         // values for the purposes of reference tracking; we'll default
         // to just trapping the root object
@@ -1139,6 +1141,11 @@ namespace ProtoBuf
             if ((b & 0xF0) == 0) return 5;
 
             throw new OverflowException();
+        }
+
+        public void Seek(int count)
+        {
+            ioIndex += count;
         }
 
         internal static void Seek(Stream source, int count, byte[] buffer)

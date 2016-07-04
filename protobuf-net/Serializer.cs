@@ -76,6 +76,35 @@ namespace ProtoBuf
         {
             return (T) RuntimeTypeModel.Default.Deserialize(source, null, typeof(T));
         }
+
+        /// <summary>
+        /// Creates a new instance from a protocol-buffer stream, without
+        /// checking for complete consumption.
+        /// </summary>
+        /// <typeparam name="T">The type to be created.</typeparam>
+        /// <param name="source">The binary stream to apply to the new instance (cannot be null).</param>
+        /// <returns>A new, initialized instance.</returns>
+        public static T DeserializeOne<T>(ProtoReader reader)
+        {
+            T instance =  (T)DeserializeOne(reader, typeof(T));
+            return instance;
+        }
+
+        public static object DeserializeOne(ProtoReader reader, Type t)
+        {
+            return RuntimeTypeModel.Default.DeserializeOne(reader, t);
+        }
+
+        public static ProtoReader GetReaderForStream(Stream source)
+        {
+            return ProtoReader.Create(
+                source,
+                RuntimeTypeModel.Default,
+                SerializationContext.Default,
+                ProtoReader.TO_EOF
+            );
+        }
+
         /// <summary>
 		/// Creates a new instance from a protocol-buffer stream
 		/// </summary>
