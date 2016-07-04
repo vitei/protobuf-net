@@ -59,7 +59,8 @@ using <xsl:value-of select="substring-before($ns,';')"/>;<!--
    <xsl:otherwise>
 using <xsl:value-of select="$ns"/>;
    </xsl:otherwise>
- </xsl:choose></xsl:if></xsl:template>
+ </xsl:choose></xsl:if>
+using System;</xsl:template>
   
   <xsl:template match="FileDescriptorSet">
     <xsl:if test="$help='true'">
