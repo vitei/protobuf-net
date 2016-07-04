@@ -20,7 +20,7 @@ namespace ProtoBuf
         }
         private BufferPool() { }
         const int PoolSize = 20;
-        internal const int BufferLength = 1024;
+        internal const int BufferLength = 8192;
         private static readonly object[] pool = new object[PoolSize];
 
         internal static byte[] GetBuffer()
